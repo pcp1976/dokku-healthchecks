@@ -1,10 +1,12 @@
-FROM ubuntu:yakkety
+FROM phusion/baseimage
 
 RUN groupadd -r hc && useradd -r -m -g hc hc
 
 # Install deps
 RUN set -x && apt-get -qq update \
     && apt-get install -y \
+		python3-dev \
+		gcc \
         python3-setuptools \
         python3-pip \
         python3-psycopg2 \
@@ -18,6 +20,7 @@ RUN set -x && apt-get -qq update \
     && svn export https://github.com/healthchecks/healthchecks/tags/v1.0.4 /app \
     && pip3 install --no-cache-dir -r /app/requirements.txt \
     && pip3 install --no-cache-dir braintree raven==5.33.0 \
+	&& apt-get remove --purge -y python3-dev gcc \
     && apt-get clean \
     && rm -fr /var/lib/apt/lists/*
 
@@ -30,5 +33,9 @@ RUN python3 manage.py collectstatic --noinput && python3 manage.py compress
 USER hc
 
 EXPOSE 5000
+RUN mkdir /etc/service/uwsgi; mkdir /etc/service/sendalerts
+COPY uwsgi.sh /etc/service/uwsgi/run
+COPY sendalerts.sh /etc/service/sendalerts/run
+RUN chmod +x /etc/service/uwsgi/run; chmod +x /etc/service/sendalerts/run
 
-CMD [ "/usr/bin/uwsgi-core", "uwsgi.ini" ]
+CMD ["/sbin/my_init"]
